@@ -1,0 +1,154 @@
+<html>
+<body style="background-color: #ffee8c;">
+<h3>Kūno metimo kampu simuliacija</h3>
+
+Pradinis aukstis (h): <input type="number" id="hInput"><br>
+Pradinis greitis (v): <input type="number" id="vInput"><br>
+Kampas: <input type="number" id="angleInput"><br>
+Laisvojo kritimo pagreitis (g): <input type="number" id="gInput" value="9.81"><br>
+Simuliacijos greitis: <input type="number" id="speedInput" value="1" step="0.1"><br>
+
+Skale: <input type="number" id="scaleInput" value="20"><br>
+Remelis: <input type="number" id="paddingInput" value="80"><br>
+
+<button id="startBtn">Pradeti</button><br>
+<p id="error" style="color:red;"></p>
+
+<p>Laikas: <span id="time"></span></p>
+<p>Maksimalus aukstis: <span id="maxHeight"></span></p>
+<p>Horizontalus atstumas: <span id="distance"></span></p>
+
+<canvas id="c" width="500" height="500" style="border:1px solid black"></canvas>
+
+<script>
+const c = document.getElementById("c"),
+ctx = c.getContext("2d");
+
+// Įvesk
+const hIn = document.getElementById("hInput"),
+vIn = document.getElementById("vInput"),
+angleIn = document.getElementById("angleInput"),
+gIn = document.getElementById("gInput");
+
+// Parodo
+const timeSpan = document.getElementById("time"),
+distanceSpan = document.getElementById("distance"),
+maxHeightSpan = document.getElementById("maxHeight"),
+errorP = document.getElementById("error");
+
+// Siena ir skalė
+let P = 80, S = 20;
+
+let h, v0, angle, g;
+let vx, vy;
+let start, running = false, trail = [];
+let tFlight, xRange, hMax;
+let simSpeed = 1;
+
+// pradk
+document.getElementById("startBtn").onclick = () => {
+  trail = [];
+  errorP.textContent = "";
+
+  h = +hIn.value;
+  v0 = +vIn.value;
+  g = +gIn.value;
+  angle = (+angleIn.value) * Math.PI / 180;
+  simSpeed = +document.getElementById("speedInput").value;
+
+  S = +document.getElementById("scaleInput").value;
+  P = +document.getElementById("paddingInput").value;
+
+const angleDeg = +angleIn.value;
+
+if (h < 0 || v0 <= 0 || angleDeg < -90 || angleDeg > 90 ||g <= 0 || S <= 0 || P < 0) {
+  errorP.textContent = "Įveskite teisingus duomenis";
+  return;
+}
+
+  vx = v0 * Math.cos(angle);
+  vy = v0 * Math.sin(angle);
+
+  tFlight = (vy + Math.sqrt(vy * vy + 2 * g * h)) / g;
+  xRange = vx * tFlight;
+  hMax = h + (vy * vy) / (2 * g);
+
+  c.width = xRange * S + P;
+  c.height = hMax * S + P;
+
+  start = performance.now();
+  running = true;
+  requestAnimationFrame(loop);
+};
+
+function drawBackground() {
+  const size = 40;
+  for (let x = 0; x < c.width; x += size) {
+    for (let y = 0; y < c.height; y += size) {
+      ctx.fillStyle = ((x / size + y / size) % 2 === 0)
+        ? "#d6f5ff"
+        : "#b3e6ff";
+      ctx.fillRect(x, y, size, size);
+    }
+  }
+}
+
+function draw(x, y) {
+  ctx.clearRect(0, 0, c.width, c.height);
+  drawBackground();
+
+  ctx.strokeStyle = "Black";
+  ctx.lineWidth = 3;
+  
+  ctx.beginPath();
+  ctx.moveTo(P/2, 0);
+  ctx.lineTo(P/2, c.height);
+  ctx.stroke();
+
+  ctx.beginPath();
+  ctx.moveTo(P/2, c.height - P/2);
+  ctx.lineTo(xRange * S + P/2, c.height - P/2);
+  ctx.stroke();
+
+  ctx.fillStyle = "blue";
+  for (const p of trail) {
+    ctx.beginPath();
+    ctx.arc(p.x * S + P/2, c.height - p.y * S - P/2, 2, 0, Math.PI * 2);
+    ctx.fill();
+  }
+
+  ctx.fillStyle = "red";
+  ctx.beginPath();
+  ctx.arc(x * S + P/2, c.height - y * S - P/2, 8, 0, Math.PI * 2);
+  ctx.fill();
+}
+
+function loop(now) {
+  if (!running) return;
+
+  let t = ((now - start) / 1000) * simSpeed;
+  let x = vx * t;
+  let y = h + vy * t - 0.5 * g * t * t;
+
+  if (y <= -0.3) {
+    running = false;
+
+    timeSpan.textContent = tFlight.toFixed(2);
+    distanceSpan.textContent = xRange.toFixed(2);
+    maxHeightSpan.textContent = hMax.toFixed(2);
+  } 
+  else {
+    trail.push({ x, y });
+    
+    maxHeightSpan.textContent = hMax.toFixed(2);
+    timeSpan.textContent = t.toFixed(2);
+    distanceSpan.textContent = x.toFixed(2);
+  }
+
+  draw(x, y);
+
+  if (running) requestAnimationFrame(loop);
+}
+</script>
+</body>
+</html>
